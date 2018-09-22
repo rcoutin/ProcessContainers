@@ -85,7 +85,7 @@ int processor_container_create(struct processor_container_cmd __user *user_cmd)
     struct task_struct* task = current;
     struct processor_container_cmd kprocessor_container_cmd;
     copy_from_user(&kprocessor_container_cmd, user_cmd, sizeof(user_cmd));
-    printk("Rahul1 TID: %d CID: %llu", task->pid, kprocessor_container_cmd.cid);
+    printk("Rahul1 TID: %d CID: %llu", task->pid, user_cmd->cid);
     // Get cid and associate the thread to a container with ID=cid using current
     return 0;
 }

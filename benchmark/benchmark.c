@@ -26,10 +26,10 @@ void *thread_body(void *x)
     int i;
     double sum;
     int cid = *((int *)x);
-
+    
     // allocate/associate a container for the thread.
     pcontainer_create(devfd, cid);
-
+    
     while (total < 50)
     {
         // calculate some dumb numbers here.
