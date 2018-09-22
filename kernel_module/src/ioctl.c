@@ -45,6 +45,21 @@
 #include <linux/sched.h>
 #include <linux/kthread.h>
 
+// Structures for containers and threads
+
+// Threads
+// struct thread_node{
+//     int task_id;
+//     struct task_struct *current;
+//     volatile long state;
+// };
+
+// // Containers
+// struct container{
+//     int container_id;
+//     thread_node* threads;
+// };
+
 /**
  * Delete the task in the container.
  * 
@@ -66,6 +81,12 @@ int processor_container_delete(struct processor_container_cmd __user *user_cmd)
  */
 int processor_container_create(struct processor_container_cmd __user *user_cmd)
 {
+    // Copy cmd from user
+    struct task_struct* task = current;
+    struct processor_container_cmd kprocessor_container_cmd;
+    copy_from_user(&kprocessor_container_cmd, user_cmd, sizeof(user_cmd));
+    printk("Rahul1 TID: %d CID: %llu", task->pid, kprocessor_container_cmd.cid);
+    // Get cid and associate the thread to a container with ID=cid using current
     return 0;
 }
 
