@@ -80,10 +80,14 @@ int add_thread(struct container* list){
     // allocating memory and assigning current threads task_struct
     temp->context = (struct task_struct*) kcalloc(1, sizeof(struct task_struct), GFP_KERNEL);
     memcpy(&(temp->context), current, sizeof(struct task_struct));
-
+    
     if(list->thread_tail != NULL){
         list->thread_tail->next = temp;
     }
+    if(list-> thread_head == NULL){
+        list -> thread_head = list -> thread_tail;
+    }
+    
     list->thread_tail = temp;    
     return 0;
 }
@@ -124,13 +128,61 @@ struct container* lookup_container(__u64 cid){
     return NULL;
 }
 
+//assuming the current thread is at the head
+// int lookup_thread(struct container* cont){
+
+//     if(cont !=NULL){
+//         struct thread_node* cur = cont -> thread_head;
+//         while (cur != NULL){
+//             if(cur -> context -> pid  == current -> pid){
+//                 return cur;
+//             }else{
+//                 cur = cur -> next;
+//             }
+//     }
+
+//     return NULL;
+// }
+
+int delete_thread(struct container* cont){
+
+    if(cont !=NULL){
+        struct thread_node* cur = cont -> thread_head;
+        struct thread_node* prev = NULL;
+
+        while (cur != NULL){
+            if(cur -> context -> pid  == current -> pid){
+                if(prev == NULL){
+                    cont->thread_head = cur->next;
+                }else{
+                    prev->next = cur -> next;
+                }
+                kfree(cur);
+                return 0;
+            }else{
+                prev = cur
+                cur = cur -> next;
+            }
+        }
+    return -1;
+}
+
+
+
 
 int processor_container_delete(struct processor_container_cmd __user *user_cmd)
 {
+    // lookup container here
+    // TO DO USER COPY
+    struct container* cont = lookup_container(user_cmd->cid);
 
-    
+    // Find the thread and delete it 
+    // Handle returns
+    delete_thread(cont);
 
-
+    if(cont->thread_head==NULL){
+        kfree(cont);
+    }
     return 0;
 }
 
