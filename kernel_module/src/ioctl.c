@@ -80,7 +80,7 @@ int add_thread(struct container* list){
     // allocating memory and assigning current threads task_struct
     temp->context = (struct task_struct*) kcalloc(1, sizeof(struct task_struct), GFP_KERNEL);
     memcpy(&(temp->context), current, sizeof(struct task_struct));
-    
+
     if(list->thread_tail != NULL){
         list->thread_tail->next = temp;
     }
@@ -160,7 +160,7 @@ int delete_thread(struct container* cont){
                 kfree(cur);
                 return 0;
             }else{
-                prev = cur
+                prev = cur;
                 cur = cur -> next;
             }
         }
