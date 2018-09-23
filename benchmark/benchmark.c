@@ -38,7 +38,6 @@ void *thread_body(void *x)
             sum += 1.0 / (1.2 + i);
             processed++;
         }
-
         // update the total counter.
         pthread_mutex_lock(&mutex);
         total += 1;
@@ -129,6 +128,7 @@ int main(int argc, char *argv[])
     for (i = 0; i < total_tasks; i++)
     {
         pthread_join(threads[i], NULL);
+        fprintf(stderr, "The finished %d \n",i);
     }
 
     // cleanup

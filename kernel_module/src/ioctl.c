@@ -45,19 +45,61 @@
 #include <linux/sched.h>
 #include <linux/kthread.h>
 
-// Structures for containers and threads
+// Global container list
+struct container* container_list = NULL;
 
+// Structures for containers and threads
 //Threads
 struct thread_node {
-    int task_id;
+    struct thread_node* next;
     struct task_struct *context;
 };
-
 // Containers
 struct container{
     __u64 container_id;
-    struct thread_node* threads;
+    struct container* next;
+    struct container* prev;
+    struct thread_node* thread_head;
+    struct thread_node* thread_tail;
+
+    // Function pointer - Assign it when you create container.
+    void (*container_scheduler_ptr)(__u64);
 };
+
+// Function pointer
+void container_scheduler(__u64 container_id){
+    // Call this using pthread_create in process_container_create
+}
+
+// Lookup
+
+// Thread Linked Lists
+int add_thread(struct container* list){
+    struct thread_node* temp = (struct thread_node*) kcalloc(1, sizeof(struct thread_node), GFP_KERNEL);
+
+    // allocating memory and assigning current threads task_struct
+    temp->context = (struct task_struct*) kcalloc(1, sizeof(struct task_struct), GFP_KERNEL);
+    memcpy(&(temp->context), current, sizeof(struct task_struct));
+
+    if(list->thread_tail != NULL){a
+        list->thread_tail->next = temp;
+    }
+    list->thread_tail = temp;    
+    return 0;
+}
+
+// Container Linked Lists
+int add_container(__u64 cid){
+    if(1!=1){
+        
+    }else{
+        struct container* temp = (struct container*) kcalloc(1, sizeof(struct container), GFP_KERNEL);        
+        temp->next = container_list;
+        container_list = temp;
+        add_thread(container_list);
+    }
+    return 0;
+}
 
 /**
  * Delete the task in the container.
@@ -81,35 +123,36 @@ int processor_container_delete(struct processor_container_cmd __user *user_cmd)
 int processor_container_create(struct processor_container_cmd __user *user_cmd)
 {
     struct task_struct* task = current;
-
-    struct thread_node* current_thread = (struct thread_node*) kcalloc(1,sizeof(struct thread_node),GFP_KERNEL);
-    struct container* assigned_container = ( struct container* ) kcalloc(1,sizeof(struct container),GFP_KERNEL);
+    // struct container* assigned_container;
+    // struct thread_node* current_thread = (struct thread_node*) kcalloc(1,sizeof(struct thread_node),GFP_KERNEL);
+    // struct container* assigned_container = ( struct container* ) kcalloc(1,sizeof(struct container),GFP_KERNEL);
     
-    
-    //1. copying CID from user space to kernel space
-    // struct processor_container_cmd kprocessor_container_cmd;
-    __u64 buf;
-    unsigned long ret = copy_from_user(&buf, &(user_cmd->cid), sizeof(user_cmd->cid));
+    // //1. copying CID from user space to kernel space
+    struct processor_container_cmd kprocessor_container_cmd;
+    // __u64 buf;
+    unsigned long ret = copy_from_user(&kprocessor_container_cmd, user_cmd, sizeof(struct processor_container_cmd));
     if(ret==0){
-        printk("Rahul1 TID: %d CID: %llu", task->pid, buf);
+        printk("Rahul1 TID: %d CID: %llu", task->pid, kprocessor_container_cmd.cid);
+        add_container(kprocessor_container_cmd.cid);
     }else{
         printk("Did not work");
     }
-    // 2. associate the thread to a container with ID=cid using current
+    // // 2. associate the thread to a container with ID=cid using current
         
-    // thread struct
+    // // thread struct
 
-    current_thread-> task_id = task ->pid;
-    current_thread-> context = current;
+    // current_thread-> task_id = task ->pid;
+    // current_thread-> context = current;
 
-    //container struct
+    // //container struct
 
-    assigned_container -> container_id = buf;
-    assigned_container -> threads = current_thread; //gotta fix
+    // assigned_container -> container_id = buf;
+    // assigned_container -> thread_head = current_thread; //gotta fix
 
 
 
-    // link them
+    // // link them
+    // append_to_container_list(buf);
     return 0;
 }
 
