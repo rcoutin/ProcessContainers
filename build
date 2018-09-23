@@ -10,5 +10,5 @@ cd ..
 cd benchmark
 make
 cd ..
-./test.sh 2 2 2 
+#./test.sh 2 2 2 
 

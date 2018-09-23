@@ -73,29 +73,46 @@ void container_scheduler(__u64 container_id){
 
 // Lookup
 
+struct container* lookup_container(__u64 cid){
+
+    struct container* cur = container_list;
+
+    while (cur != NULL){
+
+        if(cur -> container_id == cid){
+            return cur;
+        }else{
+            cur = cur -> next;
+        }
+    }
+
+    return NULL;
+}
 // Thread Linked Lists
-int add_thread(struct container* list){
+int add_thread(struct container* container){
     struct thread_node* temp = (struct thread_node*) kcalloc(1, sizeof(struct thread_node), GFP_KERNEL);
 
     // allocating memory and assigning current threads task_struct
     temp->context = (struct task_struct*) kcalloc(1, sizeof(struct task_struct), GFP_KERNEL);
     memcpy(&(temp->context), current, sizeof(struct task_struct));
 
-    if(list->thread_tail != NULL){
-        list->thread_tail->next = temp;
+    if(container->thread_tail != NULL){
+        container->thread_tail->next = temp;
     }
-    if(list-> thread_head == NULL){
-        list -> thread_head = list -> thread_tail;
+    if(container-> thread_head == NULL){
+        container -> thread_head = container -> thread_tail;
     }
     
-    list->thread_tail = temp;    
+    container->thread_tail = temp;    
     return 0;
 }
 
 // Container Linked Lists
 int add_container(__u64 cid){
-    if(1!=1){
-        
+    struct container* lookup_cont = lookup_container(cid);
+    if(lookup_cont!= NULL){
+        //container exists; add threads    
+        add_thread(lookup_cont);    
     }else{
         struct container* temp = (struct container*) kcalloc(1, sizeof(struct container), GFP_KERNEL);        
         temp->next = container_list;
@@ -112,21 +129,6 @@ int add_container(__u64 cid){
  * mutex_lock(), mutex_unlock(), wake_up_process(), 
  */
 
-struct container* lookup_container(__u64 cid){
-
-    struct container* cur = container_list;
-
-    while (cur != NULL){
-
-        if(cur -> container_id == cid){
-            return cur;
-        }else{
-            cur = cur -> next;
-        }
-    }
-
-    return NULL;
-}
 
 //assuming the current thread is at the head
 // int lookup_thread(struct container* cont){
