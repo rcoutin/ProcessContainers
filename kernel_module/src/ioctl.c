@@ -163,13 +163,10 @@ int delete_thread(struct container* cont){
                 prev = cur;
                 cur = cur -> next;
             }
-        }
+        }  
+    }
     return -1;
 }
-
-
-
-
 int processor_container_delete(struct processor_container_cmd __user *user_cmd)
 {
     // lookup container here
