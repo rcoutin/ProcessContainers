@@ -47,7 +47,8 @@
 
 // Global container list
 struct container* container_list = NULL;
-
+// Global lock
+struct mutex* lock = NULL;
 // Structures for containers and threads
 //Threads
 struct thread_node {
@@ -68,13 +69,17 @@ struct container{
 
 // Function pointer
 void container_scheduler(__u64 container_id){
-    // Call this using pthread_create in process_container_create
+    // Call this using kthread in process_container_create
 }
 
-// Lookup
+// Lookup container by id
 struct container* lookup_container(__u64 cid){
-
-    struct container* cur = container_list;
+    // take a lock on the global container list
+    struct container* cur;
+    printk("Looking up container;before lock");
+    mutex_lock(lock);
+    printk("Look up container acquired lock");
+    cur = container_list;
 
     while (cur != NULL){
         if(cur -> container_id == cid){
@@ -83,6 +88,8 @@ struct container* lookup_container(__u64 cid){
             cur = cur -> next;
         }
     }
+    mutex_unlock(lock);
+    printk("Lookup complete, unlocked");
     return NULL;
 }
 // Thread Linked Lists
@@ -105,6 +112,12 @@ int add_thread(struct container* container){
 
 // Container Linked Lists
 int add_container(__u64 cid){
+
+    //lock the global container list before adding
+    printk("Adding container. Before lock");
+    mutex_lock(lock);
+    printk("Adding container; acquired lock");
+
     struct container* lookup_cont = lookup_container(cid);
     if(lookup_cont!= NULL){
         //container exists; add threads    
@@ -117,6 +130,9 @@ int add_container(__u64 cid){
         printk("KKK Adding a fresh container");
         add_thread(container_list);
      }
+
+     mutex_unlock(lock);
+     printk("Added container, unlocked");
     return 0;
 }
 
@@ -181,6 +197,7 @@ int processor_container_delete(struct processor_container_cmd __user *user_cmd)
 
     // Find the thread and delete it
     if(delete_thread(cont) != 0){
+        //could not find the current thread to delete (?!!)
         return -1;
     }
 
@@ -209,33 +226,23 @@ int processor_container_delete(struct processor_container_cmd __user *user_cmd)
 int processor_container_create(struct processor_container_cmd __user *user_cmd)
 {
     struct task_struct* task = current;
+    struct processor_container_cmd kprocessor_container_cmd;
+    unsigned long ret;
+
+    if(lock == NULL){
+        lock = (struct mutex *) kcalloc(1, sizeof(struct mutex),GFP_KERNEL);
+        mutex_init(lock);
+        printk("Initialized lock");
+    }
   
     // //1. copying CID from user space to kernel space
-    struct processor_container_cmd kprocessor_container_cmd;
-    // __u64 buf;
-    unsigned long ret = copy_from_user(&kprocessor_container_cmd, user_cmd, sizeof(struct processor_container_cmd));
+    ret = copy_from_user(&kprocessor_container_cmd, user_cmd, sizeof(struct processor_container_cmd));
     if(ret==0){
         printk("Rahul1 TID: %d CID: %llu", task->pid, kprocessor_container_cmd.cid);
         add_container(kprocessor_container_cmd.cid);
     }else{
         printk("Did not work");
     }
-    // // 2. associate the thread to a container with ID=cid using current
-        
-    // // thread struct
-
-    // current_thread-> task_id = task ->pid;
-    // current_thread-> context = current;
-
-    // //container struct
-
-    // assigned_container -> container_id = buf;
-    // assigned_container -> thread_head = current_thread; //gotta fix
-
-
-
-    // // link them
-    // append_to_container_list(buf);
     return 0;
 }
 
@@ -247,6 +254,7 @@ int processor_container_create(struct processor_container_cmd __user *user_cmd)
  */
 int processor_container_switch(struct processor_container_cmd __user *user_cmd)
 {
+    //
     return 0;
 }
 
