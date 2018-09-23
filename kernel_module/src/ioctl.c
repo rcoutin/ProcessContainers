@@ -111,7 +111,7 @@ int add_thread(struct container* container){
     }
     container->thread_tail = temp;    
     if(container-> thread_head == NULL){
-        container -> thread_head = container -> thread_tail;
+        container -> thread_head = temp;
     }
 
     printk(" KKK Added thread to the container %d", container->thread_tail->thread_id);
@@ -178,7 +178,6 @@ int delete_thread(struct container* cont){
 
         while (cur != NULL){
             printk("Stored Thread %d.",cur -> thread_id);
-            printk("Current Thread %d.",current -> pid);
             if(cur -> thread_id  == current -> pid){
                 printk("In delete thread. Thread found! %d", current->pid);
                 if(prev == NULL){
@@ -187,6 +186,7 @@ int delete_thread(struct container* cont){
                     prev->next = cur -> next;
                 }
                 kfree(cur);
+                cur=NULL;
                 return 0;
             }else{
                 prev = cur;
@@ -237,7 +237,13 @@ int processor_container_delete(struct processor_container_cmd __user *user_cmd)
             }else{
                 container_list = cont->next;
             }
+            if(container_list == NULL){
+                printk("No more containers!");
+            }else{
+                printk("Thread Head ID: %d", container_list->thread_head->thread_id);
+            }
             kfree(cont);
+            cont=NULL;
             printk("Freed container %d", current->pid);
         }
 
@@ -249,6 +255,7 @@ int processor_container_delete(struct processor_container_cmd __user *user_cmd)
     //delete the lock
     if(container_list==NULL){
         kfree(lock);
+        lock=NULL;
     }
     return 0;
 }
