@@ -81,7 +81,7 @@ int add_thread(struct container* list){
     temp->context = (struct task_struct*) kcalloc(1, sizeof(struct task_struct), GFP_KERNEL);
     memcpy(&(temp->context), current, sizeof(struct task_struct));
 
-    if(list->thread_tail != NULL){a
+    if(list->thread_tail != NULL){
         list->thread_tail->next = temp;
     }
     list->thread_tail = temp;    
@@ -107,8 +107,30 @@ int add_container(__u64 cid){
  * external functions needed:
  * mutex_lock(), mutex_unlock(), wake_up_process(), 
  */
+
+struct container* lookup_container(__u64 cid){
+
+    struct container* cur = container_list;
+
+    while (cur != NULL){
+
+        if(cur -> container_id == cid){
+            return cur;
+        }else{
+            cur = cur -> next;
+        }
+    }
+
+    return NULL;
+}
+
+
 int processor_container_delete(struct processor_container_cmd __user *user_cmd)
 {
+
+    
+
+
     return 0;
 }
 
