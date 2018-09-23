@@ -26,6 +26,7 @@ extern "C"
      */
     static void handler()
     {
+        fprintf(stderr, "Handler handling time");
         pcontainer_context_switch_handler(DEVFD, 0);
     }
 
