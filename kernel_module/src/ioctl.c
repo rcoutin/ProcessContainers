@@ -72,20 +72,17 @@ void container_scheduler(__u64 container_id){
 }
 
 // Lookup
-
 struct container* lookup_container(__u64 cid){
 
     struct container* cur = container_list;
 
     while (cur != NULL){
-
         if(cur -> container_id == cid){
             return cur;
         }else{
             cur = cur -> next;
         }
     }
-
     return NULL;
 }
 // Thread Linked Lists
@@ -118,7 +115,7 @@ int add_container(__u64 cid){
         temp->next = container_list;
         container_list = temp;
         add_thread(container_list);
-    }
+    // }
     return 0;
 }
 
@@ -154,6 +151,7 @@ int delete_thread(struct container* cont){
 
         while (cur != NULL){
             if(cur -> context -> pid  == current -> pid){
+                printk("In delete thread. Thread found!");
                 if(prev == NULL){
                     cont->thread_head = cur->next;
                 }else{
@@ -169,19 +167,31 @@ int delete_thread(struct container* cont){
     }
     return -1;
 }
+
 int processor_container_delete(struct processor_container_cmd __user *user_cmd)
 {
-    // lookup container here
-    // TO DO USER COPY
-    struct container* cont = lookup_container(user_cmd->cid);
+    struct processor_container_cmd kprocessor_container_cmd;
+    unsigned long ret = copy_from_user(&kprocessor_container_cmd, user_cmd, sizeof(struct processor_container_cmd));
 
-    // Find the thread and delete it 
-    // Handle returns
-    delete_thread(cont);
+    // Lookup container
+    struct container* cont = lookup_container(kprocessor_container_cmd.cid);
+
+    // Find the thread and delete it
+    if(delete_thread(cont) != 0){
+        return -1;
+    }
 
     if(cont->thread_head==NULL){
+        if(cont->prev != NULL){
+            cont->prev->next = cont->next;
+            cont->next->prev = cont->prev;
+        }else{
+            container_list = cont->next;
+        }
         kfree(cont);
+        printk("Freed container");
     }
+
     return 0;
 }
 
