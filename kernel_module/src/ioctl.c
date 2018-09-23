@@ -47,18 +47,17 @@
 
 // Structures for containers and threads
 
-// Threads
-// struct thread_node{
-//     int task_id;
-//     struct task_struct *current;
-//     volatile long state;
-// };
+//Threads
+struct thread_node {
+    int task_id;
+    struct task_struct *context;
+};
 
-// // Containers
-// struct container{
-//     int container_id;
-//     thread_node* threads;
-// };
+// Containers
+struct container{
+    __u64 container_id;
+    struct thread_node* threads;
+};
 
 /**
  * Delete the task in the container.
@@ -81,12 +80,36 @@ int processor_container_delete(struct processor_container_cmd __user *user_cmd)
  */
 int processor_container_create(struct processor_container_cmd __user *user_cmd)
 {
-    // Copy cmd from user
     struct task_struct* task = current;
-    struct processor_container_cmd kprocessor_container_cmd;
-    copy_from_user(&kprocessor_container_cmd, user_cmd, sizeof(user_cmd));
-    printk("Rahul1 TID: %d CID: %llu", task->pid, user_cmd->cid);
-    // Get cid and associate the thread to a container with ID=cid using current
+
+    struct thread_node* current_thread = (struct thread_node*) kcalloc(1,sizeof(struct thread_node),GFP_KERNEL);
+    struct container* assigned_container = ( struct container* ) kcalloc(1,sizeof(struct container),GFP_KERNEL);
+    
+    
+    //1. copying CID from user space to kernel space
+    // struct processor_container_cmd kprocessor_container_cmd;
+    __u64 buf;
+    unsigned long ret = copy_from_user(&buf, &(user_cmd->cid), sizeof(user_cmd->cid));
+    if(ret==0){
+        printk("Rahul1 TID: %d CID: %llu", task->pid, buf);
+    }else{
+        printk("Did not work");
+    }
+    // 2. associate the thread to a container with ID=cid using current
+        
+    // thread struct
+
+    current_thread-> task_id = task ->pid;
+    current_thread-> context = current;
+
+    //container struct
+
+    assigned_container -> container_id = buf;
+    assigned_container -> threads = current_thread; //gotta fix
+
+
+
+    // link them
     return 0;
 }
 
