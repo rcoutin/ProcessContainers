@@ -112,21 +112,21 @@ int add_thread(struct container* container){
 
 // Container Linked Lists
 int add_container(__u64 cid){
-
+    struct container* lookup_cont;
     //lock the global container list before adding
     printk("Adding container. Before lock");
     mutex_lock(lock);
     printk("Adding container; acquired lock");
 
-    struct container* lookup_cont = lookup_container(cid);
+    lookup_cont = lookup_container(cid);
     if(lookup_cont!= NULL){
         //container exists; add threads    
-        //add_thread(lookup_cont);    
+        add_thread(lookup_cont);    
         printk("Need to add new threads");
     }else{
-        struct container* temp = (struct container*) kcalloc(1, sizeof(struct container), GFP_KERNEL);        
-        temp->next = container_list;
-        container_list = temp;
+        struct container* new_head = (struct container*) kcalloc(1, sizeof(struct container), GFP_KERNEL);        
+        new_head->next = container_list;
+        container_list = new_head;
         printk("KKK Adding a fresh container");
         add_thread(container_list);
      }
@@ -167,8 +167,8 @@ int delete_thread(struct container* cont){
         struct thread_node* prev = NULL;
 
         while (cur != NULL){
-            printk("%ld",cur ->context ->pid);
-            printk("%ld",current -> pid);
+            printk("%d",cur ->context ->pid);
+            printk("%d",current -> pid);
             if(cur -> context -> pid  == current -> pid){
                 printk("In delete thread. Thread found!");
                 if(prev == NULL){
@@ -191,13 +191,17 @@ int processor_container_delete(struct processor_container_cmd __user *user_cmd)
 {
     struct processor_container_cmd kprocessor_container_cmd;
     unsigned long ret = copy_from_user(&kprocessor_container_cmd, user_cmd, sizeof(struct processor_container_cmd));
-
+    struct container* cont;
+    if(ret!=0){
+        printk("copy_from_user failed. Couldn't delete.");
+        return -1;
+    }
     // Lookup container
-    struct container* cont = lookup_container(kprocessor_container_cmd.cid);
-
+    cont = lookup_container(kprocessor_container_cmd.cid);
+    
     // Find the thread and delete it
     if(delete_thread(cont) != 0){
-        //could not find the current thread to delete (?!!)
+        printk("could not find the current thread to delete (?!!)");
         return -1;
     }
 
