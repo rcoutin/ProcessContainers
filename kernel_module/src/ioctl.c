@@ -88,19 +88,18 @@ struct container* lookup_container(__u64 cid){
 // Thread Linked Lists
 int add_thread(struct container* container){
     struct thread_node* temp = (struct thread_node*) kcalloc(1, sizeof(struct thread_node), GFP_KERNEL);
-
+    printk("KKK Adding a thread to the container");
     // allocating memory and assigning current threads task_struct
     temp->context = (struct task_struct*) kcalloc(1, sizeof(struct task_struct), GFP_KERNEL);
-    memcpy(&(temp->context), current, sizeof(struct task_struct));
+    memcpy(temp->context, current, sizeof(struct task_struct));
 
     if(container->thread_tail != NULL){
         container->thread_tail->next = temp;
     }
+    container->thread_tail = temp;    
     if(container-> thread_head == NULL){
         container -> thread_head = container -> thread_tail;
     }
-    
-    container->thread_tail = temp;    
     return 0;
 }
 
@@ -109,13 +108,15 @@ int add_container(__u64 cid){
     struct container* lookup_cont = lookup_container(cid);
     if(lookup_cont!= NULL){
         //container exists; add threads    
-        add_thread(lookup_cont);    
+        //add_thread(lookup_cont);    
+        printk("Need to add new threads");
     }else{
         struct container* temp = (struct container*) kcalloc(1, sizeof(struct container), GFP_KERNEL);        
         temp->next = container_list;
         container_list = temp;
+        printk("KKK Adding a fresh container");
         add_thread(container_list);
-    // }
+     }
     return 0;
 }
 
@@ -150,6 +151,8 @@ int delete_thread(struct container* cont){
         struct thread_node* prev = NULL;
 
         while (cur != NULL){
+            printk("%ld",cur ->context ->pid);
+            printk("%ld",current -> pid);
             if(cur -> context -> pid  == current -> pid){
                 printk("In delete thread. Thread found!");
                 if(prev == NULL){
@@ -206,10 +209,7 @@ int processor_container_delete(struct processor_container_cmd __user *user_cmd)
 int processor_container_create(struct processor_container_cmd __user *user_cmd)
 {
     struct task_struct* task = current;
-    // struct container* assigned_container;
-    // struct thread_node* current_thread = (struct thread_node*) kcalloc(1,sizeof(struct thread_node),GFP_KERNEL);
-    // struct container* assigned_container = ( struct container* ) kcalloc(1,sizeof(struct container),GFP_KERNEL);
-    
+  
     // //1. copying CID from user space to kernel space
     struct processor_container_cmd kprocessor_container_cmd;
     // __u64 buf;
