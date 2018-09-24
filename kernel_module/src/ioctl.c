@@ -63,7 +63,7 @@ struct container{
     struct container* prev;
     struct thread_node* thread_head;
     struct thread_node* thread_tail;
-
+    // kthread_t * sched_thread;
     // Function pointer - Assign it when you create container.
     void (*container_scheduler_ptr)(__u64);
 };
@@ -105,13 +105,17 @@ int add_thread(struct container* container){
     temp->thread_id = current->pid;
     temp->context = (struct task_struct*) kcalloc(1, sizeof(struct task_struct), GFP_KERNEL);
     memcpy(temp->context, current, sizeof(struct task_struct));
-
+    
     if(container->thread_tail != NULL){
         container->thread_tail->next = temp;
+        set_current_state(TASK_INTERRUPTIBLE);
+        schedule();
     }
     container->thread_tail = temp;    
     if(container-> thread_head == NULL){
         container -> thread_head = temp;
+        set_current_state(TASK_RUNNING);
+        schedule();
     }
 
     printk(" KKK Added thread to the container %d", container->thread_tail->thread_id);
@@ -136,6 +140,9 @@ int add_container(struct container* lookup_cont, __u64 cid){
         new_head->container_id = cid;
         new_head->next = container_list;
         container_list = new_head;
+
+
+
         printk("KKK Adding a fresh container %d", current->pid);
         add_thread(container_list);
         printk("Added container, unlocked %d", current->pid);
@@ -210,10 +217,6 @@ int processor_container_delete(struct processor_container_cmd __user *user_cmd)
         return -1;
     }
 
-    // lock 
-
-
-    // unlock
     // Lookup container
     printk("In delete lookup");
     cont = lookup_container(kprocessor_container_cmd.cid);
@@ -302,6 +305,18 @@ int processor_container_create(struct processor_container_cmd __user *user_cmd)
     return 0;
 }
 
+struct container* find_container(pid_t pid){
+    struct container* cur = container_list;
+    while(cur!=NULL){
+        if(cur->thread_head != NULL && cur->thread_head->thread_id == pid){
+            return cur;
+        }else{
+            cur = cur -> next;
+        }
+    }
+    return NULL;
+}
+
 /**
  * switch to the next task within the same container
  * 
@@ -310,7 +325,21 @@ int processor_container_create(struct processor_container_cmd __user *user_cmd)
  */
 int processor_container_switch(struct processor_container_cmd __user *user_cmd)
 {
-    //
+    // Find container having current thread
+    struct container* context_switch_container = find_container(current->pid);
+    struct tawsk_struct* current_task = current;
+    // Suspend current thread and Move thread to the back of the queue and change thread head
+    if(context_switch_container != NULL){
+        struct thread_node* top = context_switch_container->thread_head;
+        memcpy(top->context, current, sizeof(struct task_struct));
+        context_switch_container->thread_head = top->next;
+        context_switch_container->thread_tail->next=top;
+        top->next = NULL;
+    }
+    // Activate new thread head
+    set_current_state(TASK_INTERRUPTIBLE);
+    schedule();
+    wake_up_process(thread_head->context);
     return 0;
 }
 

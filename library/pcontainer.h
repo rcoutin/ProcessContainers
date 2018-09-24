@@ -14,6 +14,7 @@ extern "C"
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#include <sys/types.h>
 
     int pcontainer_delete(int devfd, int cid);
     int pcontainer_create(int devfd, int cid);
@@ -26,7 +27,7 @@ extern "C"
      */
     static void handler()
     {
-        fprintf(stderr, "Handler handling time");
+        fprintf(stderr, "Handler handling time %d", (int)syscall(SYS_gettid) );
         pcontainer_context_switch_handler(DEVFD, 0);
     }
 
