@@ -47,7 +47,6 @@
 
 // Global container list
 struct container* container_list = NULL;
-// Global lock
 struct mutex* lock = NULL;
 // Structures for containers and threads
 //Threads
@@ -108,14 +107,14 @@ int add_thread(struct container* container){
     
     if(container->thread_tail != NULL){
         container->thread_tail->next = temp;
-        set_current_state(TASK_INTERRUPTIBLE);
-        schedule();
+        // set_current_state(TASK_INTERRUPTIBLE);
+        // schedule();
     }
     container->thread_tail = temp;    
     if(container-> thread_head == NULL){
         container -> thread_head = temp;
-        set_current_state(TASK_RUNNING);
-        schedule();
+        // set_current_state(TASK_RUNNING);
+        // schedule();
     }
 
     printk(" KKK Added thread to the container %d", container->thread_tail->thread_id);
@@ -325,21 +324,22 @@ struct container* find_container(pid_t pid){
  */
 int processor_container_switch(struct processor_container_cmd __user *user_cmd)
 {
-    // Find container having current thread
-    struct container* context_switch_container = find_container(current->pid);
-    struct tawsk_struct* current_task = current;
-    // Suspend current thread and Move thread to the back of the queue and change thread head
-    if(context_switch_container != NULL){
-        struct thread_node* top = context_switch_container->thread_head;
-        memcpy(top->context, current, sizeof(struct task_struct));
-        context_switch_container->thread_head = top->next;
-        context_switch_container->thread_tail->next=top;
-        top->next = NULL;
-    }
-    // Activate new thread head
-    set_current_state(TASK_INTERRUPTIBLE);
-    schedule();
-    wake_up_process(thread_head->context);
+    // // Find container having current thread
+    // struct container* context_switch_container = find_container(current->pid);
+    // struct thread_node* top;
+    // // Suspend current thread and Move thread to the back of the queue and change thread head
+    // if(context_switch_container != NULL){
+    //     top = context_switch_container->thread_head;
+    //     memcpy(top->context, current, sizeof(struct task_struct));
+    //     context_switch_container->thread_head = top->next;
+    //     context_switch_container->thread_tail->next=top;
+    //     top->next = NULL;
+
+    //     // Activate new thread head
+    //     set_current_state(TASK_INTERRUPTIBLE);
+    //     schedule();
+    //     wake_up_process(context_switch_container->thread_head->context);
+    // }
     return 0;
 }
 
