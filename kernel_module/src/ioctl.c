@@ -62,9 +62,10 @@ struct container{
     struct container* prev;
     struct thread_node* thread_head;
     struct thread_node* thread_tail;
+    struct mutex * local_lock;
     // kthread_t * sched_thread;
     // Function pointer - Assign it when you create container.
-    void (*container_scheduler_ptr)(__u64);
+    //void (*container_scheduler_ptr)(__u64);
 };
 
 // Function pointer
@@ -97,27 +98,35 @@ struct container* lookup_container(__u64 cid){
 }
 // Thread Linked Lists
 int add_thread(struct container* container){
-    struct thread_node* temp = (struct thread_node*) kcalloc(1, sizeof(struct thread_node), GFP_KERNEL);
+    struct thread_node* current_thread_node = (struct thread_node*) kcalloc(1, sizeof(struct thread_node), GFP_KERNEL);
     printk("KKK Adding a thread to the container %d", current->pid);
 
     // allocating memory and assigning current threads task_struct
-    temp->thread_id = current->pid;
-    temp->context = (struct task_struct*) kcalloc(1, sizeof(struct task_struct), GFP_KERNEL);
-    memcpy(temp->context, current, sizeof(struct task_struct));
-    
+    current_thread_node->thread_id = current->pid;
+    current_thread_node->context = (struct task_struct*) kcalloc(1, sizeof(struct task_struct), GFP_KERNEL);
+    memcpy(current_thread_node->context, current, sizeof(struct task_struct));
+
+    //take a lock using the containers local mutex
+    mutex_lock(container->local_lock);
+
+    //add thread node to the back of the queue
     if(container->thread_tail != NULL){
-        container->thread_tail->next = temp;
-        // set_current_state(TASK_INTERRUPTIBLE);
-        // schedule();
+        container->thread_tail->next = current_thread_node;
     }
-    container->thread_tail = temp;    
+    container->thread_tail = current_thread_node;
+
+    //check the front to see if this is the first thread into the container or not
     if(container-> thread_head == NULL){
-        container -> thread_head = temp;
-        // set_current_state(TASK_RUNNING);
-        // schedule();
+        container -> thread_head = current_thread_node;
+        set_current_state(TASK_RUNNING);
+    }else{
+        // not the first thread, so sleep
+        set_current_state(TASK_INTERRUPTIBLE);
     }
 
     printk(" KKK Added thread to the container %d", container->thread_tail->thread_id);
+    mutex_unlock(container->local_lock);
+    schedule();
     return 0;
 }
 
@@ -129,18 +138,20 @@ int add_container(struct container* lookup_cont, __u64 cid){
     
     printk("Adding container; acquired lock %d", current->pid);
 
-  
     if(lookup_cont!= NULL){
         //container exists; add threads    
         add_thread(lookup_cont);    
-        printk("Need to add new threads %d", current->pid);
+        printk("Added new thread %d", current->pid);
     }else{
-        struct container* new_head = (struct container*) kcalloc(1, sizeof(struct container), GFP_KERNEL);        
+        struct container* new_head = (struct container*) kcalloc(1, sizeof(struct container), GFP_KERNEL);   
+
+        struct mutex* container_lock = (struct mutex*) kcalloc(1,sizeof(struct mutex),GFP_KERNEL);
+        mutex_init(container_lock);
+        new_head->local_lock = container_lock;
         new_head->container_id = cid;
         new_head->next = container_list;
+
         container_list = new_head;
-
-
 
         printk("KKK Adding a fresh container %d", current->pid);
         add_thread(container_list);
@@ -255,10 +266,10 @@ int processor_container_delete(struct processor_container_cmd __user *user_cmd)
     mutex_unlock(lock);
 
     //delete the lock
-    if(container_list==NULL){
-        kfree(lock);
-        lock=NULL;
-    }
+    // if(container_list==NULL){
+    //     kfree(lock);
+    //     lock=NULL;
+    // }
     return 0;
 }
 
@@ -288,7 +299,7 @@ int processor_container_create(struct processor_container_cmd __user *user_cmd)
     mutex_lock(lock);
     ret = copy_from_user(&kprocessor_container_cmd, user_cmd, sizeof(struct processor_container_cmd));
     if(ret==0){
-        printk("Rahul1 TID: %d CID: %llu", task->pid, kprocessor_container_cmd.cid);
+        printk("Thread ID: %d CID: %llu", task->pid, kprocessor_container_cmd.cid);
 
         //lock here
         printk("Create: Obtaining lock");
@@ -324,24 +335,48 @@ struct container* find_container(pid_t pid){
  */
 int processor_container_switch(struct processor_container_cmd __user *user_cmd)
 {
-    // // Find container having current thread
-    // struct container* context_switch_container = find_container(current->pid);
-    // struct thread_node* top;
-    // // Suspend current thread and Move thread to the back of the queue and change thread head
-    // if(context_switch_container != NULL){
-    //     top = context_switch_container->thread_head;
-    //     memcpy(top->context, current, sizeof(struct task_struct));
-    //     context_switch_container->thread_head = top->next;
-    //     context_switch_container->thread_tail->next=top;
-    //     top->next = NULL;
+    struct container* context_switch_container;
+    struct thread_node* top;
+    printk("Context switching for thread %d",current->pid);
+    // Find container having current thread
+    mutex_lock(lock);
+    context_switch_container = find_container(current->pid);
+    mutex_unlock(lock);
+    // Suspend current thread and Move thread to the back of the queue and change thread head
+    if(context_switch_container != NULL){
 
-    //     // Activate new thread head
-    //     set_current_state(TASK_INTERRUPTIBLE);
-    //     schedule();
-    //     wake_up_process(context_switch_container->thread_head->context);
-    // }
+        printk("This thread %d belongs to container %llu",current->pid, context_switch_container->container_id);
+        top = context_switch_container->thread_head;
+        context_switch_container->thread_head = top->next;
+        context_switch_container->thread_tail->next=top;
+        top->next = NULL;
+        
+        // Activate new thread head
+        memcpy(context_switch_container->thread_tail->context, current, sizeof(struct task_struct));
+        set_current_state(TASK_INTERRUPTIBLE);
+        schedule();
+
+        printk("This thread %d has been put to sleep",current->pid);
+        int woken_up = wake_up_process(context_switch_container->thread_head->context);
+        if(woken_up == 1){
+            printk("This thread %d has been woken up",current->pid);
+        }else{
+            printk("This thread %d was already running",current->pid);
+        }
+    }
+    else{
+        printk("Could not find container for context switching for thread %d",current->pid);
+    }
+
     return 0;
 }
+
+void show_container_details(){
+
+
+
+}
+
 
 /**
  * control function that receive the command in user space and pass arguments to
