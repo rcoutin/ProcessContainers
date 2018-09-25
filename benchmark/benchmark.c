@@ -30,17 +30,17 @@ void *thread_body(void *x)
     // allocate/associate a container for the thread.
     pcontainer_create(devfd, cid);
     
-    while (total < 5000)
+    while (total < 50000000)
     {
         // calculate some dumb numbers here.
-        for (i = 0; i < 100; i++)
+        for (i = 0; i < 10000; i++)
         {
             sum += 1.0 / (1.2 + i);
             processed++;
         }
         // update the total counter.
         pthread_mutex_lock(&mutex);
-        total += 10;
+        total += 1000000;
         pthread_mutex_unlock(&mutex);
     }
     // The sum of each container should be close.
