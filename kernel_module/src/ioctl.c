@@ -103,8 +103,9 @@ int add_thread(struct container* container){
 
     // allocating memory and assigning current threads task_struct
     current_thread_node->thread_id = current->pid;
-    current_thread_node->context = (struct task_struct*) kcalloc(1, sizeof(struct task_struct), GFP_KERNEL);
-    memcpy(current_thread_node->context, current, sizeof(struct task_struct));
+    current_thread_node->context = current;
+    // current_thread_node->context = (struct task_struct*) kcalloc(1, sizeof(struct task_struct), GFP_KERNEL);
+    // memcpy(current_thread_node->context, current, sizeof(struct task_struct));
 
     //take a lock using the containers local mutex
     mutex_lock(container->local_lock);
@@ -219,11 +220,10 @@ int processor_container_delete(struct processor_container_cmd __user *user_cmd)
     struct processor_container_cmd kprocessor_container_cmd;
     struct container* cont;
     unsigned long ret;
-    mutex_lock(lock);
+    int delete_ret;
     ret = copy_from_user(&kprocessor_container_cmd, user_cmd, sizeof(struct processor_container_cmd));
     if(ret!=0){
         printk("copy_from_user failed. Couldn't delete. %d", current->pid);
-        mutex_unlock(lock);
         return -1;
     }
 
@@ -232,17 +232,18 @@ int processor_container_delete(struct processor_container_cmd __user *user_cmd)
     cont = lookup_container(kprocessor_container_cmd.cid);
   
     // remove the container
-
     if(cont!=NULL){
-    // Find the thread and delete it
-        int delete_ret = delete_thread(cont);
+        // Find the thread and delete it
+        mutex_lock(cont->local_lock);
+        delete_ret = delete_thread(cont);
+        mutex_unlock(cont->local_lock);
         if(delete_ret != 0){
             printk("could not find the current thread to delete (?!!) %d", current->pid);
-            mutex_unlock(lock);
             return -1;
         }
 
-    //delete the container
+        //delete the container
+        mutex_lock(lock);
         if(cont->thread_head==NULL){
             if(cont->prev != NULL){
                 cont->prev->next = cont->next;
@@ -259,11 +260,8 @@ int processor_container_delete(struct processor_container_cmd __user *user_cmd)
             cont=NULL;
             printk("Freed container %d", current->pid);
         }
-
+        mutex_unlock(lock);
     }
-   
-    // Error case handler, dont know practicality
-    mutex_unlock(lock);
 
     //delete the lock
     // if(container_list==NULL){
@@ -337,6 +335,7 @@ int processor_container_switch(struct processor_container_cmd __user *user_cmd)
 {
     struct container* context_switch_container;
     struct thread_node* top;
+    int woken_up;
     printk("Context switching for thread %d",current->pid);
     // Find container having current thread
     mutex_lock(lock);
@@ -344,37 +343,34 @@ int processor_container_switch(struct processor_container_cmd __user *user_cmd)
     mutex_unlock(lock);
     // Suspend current thread and Move thread to the back of the queue and change thread head
     if(context_switch_container != NULL){
-
+        mutex_lock(context_switch_container->local_lock);
         printk("This thread %d belongs to container %llu",current->pid, context_switch_container->container_id);
-        top = context_switch_container->thread_head;
-        context_switch_container->thread_head = top->next;
-        context_switch_container->thread_tail->next=top;
-        top->next = NULL;
-        
-        // Activate new thread head
-        memcpy(context_switch_container->thread_tail->context, current, sizeof(struct task_struct));
-        set_current_state(TASK_INTERRUPTIBLE);
-        schedule();
-
-        printk("This thread %d has been put to sleep",current->pid);
-        int woken_up = wake_up_process(context_switch_container->thread_head->context);
-        if(woken_up == 1){
-            printk("This thread %d has been woken up",current->pid);
+        if(context_switch_container->thread_head != context_switch_container->thread_tail){
+            top = context_switch_container->thread_head;
+            context_switch_container->thread_head = top->next;
+            context_switch_container->thread_tail->next=top;
+            top->next = NULL;
+            // Activate new thread head
+            // memcpy(context_switch_container->thread_tail->context, current, sizeof(struct task_struct));
+            set_current_state(TASK_INTERRUPTIBLE);
+            woken_up = wake_up_process(context_switch_container->thread_head->context);
+            if(woken_up == 1){
+                printk("This thread %d has been woken up",current->pid);
+            }else{
+                printk("This thread %d was already running",current->pid);
+            }
         }else{
-            printk("This thread %d was already running",current->pid);
+            set_current_state(TASK_RUNNING);
         }
+        mutex_unlock(context_switch_container->local_lock);
+        schedule();
+        printk("This thread %d has been put to sleep",current->pid);
     }
     else{
         printk("Could not find container for context switching for thread %d",current->pid);
     }
 
     return 0;
-}
-
-void show_container_details(){
-
-
-
 }
 
 
@@ -397,3 +393,6 @@ int processor_container_ioctl(struct file *filp, unsigned int cmd,
         return -ENOTTY;
     }
 }
+
+
+
