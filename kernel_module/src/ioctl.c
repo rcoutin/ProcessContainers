@@ -395,4 +395,25 @@ int processor_container_ioctl(struct file *filp, unsigned int cmd,
 }
 
 
+void enqueue(struct thread_node * head, struct thread_node * tail , struct thread_node* thread_item){
+    if(tail !=NULL){
+        tail -> next = thread_item;
+    }
+    tail = thread_item;
+    if(head == NULL){
+        head = tail;
+    }
+}
+
+struct thread_node* dequeue(struct thread_node* head){
+    if(head == NULL){
+        return NULL;
+    }
+    struct thread_node* to_return = head;
+    head = head-> next;
+    if(head == NULL){
+        tail = NULL;
+    }
+    return to_return;
+}
 
