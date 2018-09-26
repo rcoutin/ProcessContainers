@@ -118,6 +118,7 @@ struct container* lookup_container(__u64 cid){
     while (cur != NULL){
         mutex_lock(lock);
         if(cur == NULL){
+            mutex_unlock(lock);
             break;
         }
         if(cur -> container_id == cid){
@@ -165,10 +166,7 @@ int add_thread(struct container* container){
 // Container Linked Lists
 int add_container(struct container* lookup_cont, __u64 cid){
     
-    //lock the global container list before adding
-    printk("Adding container. Before lock %d", current->pid);
     
-    printk("Adding container; acquired lock %d", current->pid);
 
     if(lookup_cont!= NULL){
         //container exists; add threads    
@@ -183,6 +181,9 @@ int add_container(struct container* lookup_cont, __u64 cid){
         new_container->container_id = cid;
         new_container-> next = NULL;
 
+        printk("Adding container. Before lock %d", current->pid);
+        //lock the global container list before adding
+
         mutex_lock(lock);
                 if(container_list!=NULL){
                     container_list->prev = new_container;
@@ -190,8 +191,9 @@ int add_container(struct container* lookup_cont, __u64 cid){
                 new_container->next = container_list;
                 container_list = new_container;
         mutex_unlock(lock);
+        printk("Adding container; acquired lock %d", current->pid);
 
-        printk("KKK Adding a fresh container %d", current->pid);
+        printk("Adding a fresh container %d", current->pid);
         add_thread(new_container);
         printk("Added container, unlocked %d", current->pid);
      }     
@@ -270,7 +272,7 @@ int processor_container_delete(struct processor_container_cmd __user *user_cmd)
 
     struct processor_container_cmd kprocessor_container_cmd;
     struct container* cont;
-    unsigned long ret;
+    unsigned long ret; 
     //int delete_ret;
     ret = copy_from_user(&kprocessor_container_cmd, user_cmd, sizeof(struct processor_container_cmd));
     if(ret!=0){
@@ -279,16 +281,17 @@ int processor_container_delete(struct processor_container_cmd __user *user_cmd)
     }
     // Lookup container
     printk("In delete lookup");
-    //mutex_lock(lock);
     cont = lookup_container(kprocessor_container_cmd.cid);
-    //mutex_unlock(lock);
     if(cont!=NULL){
         delete_thread(cont);
     }
 
-    mutex_init(lock)
-        
-
+    mutex_lock(lock);
+        if(container_list==NULL){
+            mutex_destroy(lock);
+            kfree(lock);
+        }
+    mutex_unlock(lock);
     return 0;
 }
 
@@ -313,20 +316,14 @@ int processor_container_create(struct processor_container_cmd __user *user_cmd)
         printk("Initialized lock %d", current->pid);
     }
   
-    // //1. copying CID from user space to kernel space
+    //copying CID from user space to kernel space
     ret = copy_from_user(&kprocessor_container_cmd, user_cmd, sizeof(struct processor_container_cmd));
     if(ret==0){
         printk("Thread ID: %d CID: %llu", task->pid, kprocessor_container_cmd.cid);
 
-        //lock here
-        printk("Create: Obtaining lock");
-        //mutex_lock(lock); EXP
-        // lookup container
         lookup_cont = lookup_container(kprocessor_container_cmd.cid);
-        // add
         add_container(lookup_cont, kprocessor_container_cmd.cid);
-       // mutex_unlock(lock); EXP
-        //
+        
     }else{
         printk("Did not work");
     }
@@ -341,14 +338,22 @@ struct container* find_container_by_thread(pid_t pid){
     while(cur!=NULL){
         mutex_lock(lock);
         if(cur == NULL){
+            mutex_unlock(lock);
             break;
         }
-        if(cur!=NULL && cur->thread_head != NULL && cur->thread_head->thread_id == pid){
+        // take a local lock to prevent
+        mutex_lock(cur-> local_lock);
+
+        if(cur->thread_head != NULL && cur->thread_head->thread_id == pid){
             ret = cur;
+            mutex_unlock(cur-> local_lock);
+            mutex_unlock(lock);
             break;
         }else{
             cur = cur -> next;
         }
+        mutex_unlock(cur-> local_lock);
+
         mutex_unlock(lock);
     }
     return ret;

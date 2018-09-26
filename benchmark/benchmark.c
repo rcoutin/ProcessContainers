@@ -40,7 +40,7 @@ void *thread_body(void *x)
         }
         // update the total counter.
         pthread_mutex_lock(&mutex);
-        total += 1000000;
+        total += 10000;
         pthread_mutex_unlock(&mutex);
     }
     // The sum of each container should be close.
