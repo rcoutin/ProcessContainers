@@ -65,30 +65,8 @@ struct container{
     struct mutex * local_lock;
     // kthread_t * sched_thread;
     // Function pointer - Assign it when you create container.
-    //void (*container_scheduler_ptr)(__u64)
+    //void (*container_scheduler_ptr)(__u64);
 };
-
-void current_container_state(){
-    mutex_lock(lock);
-
-    struct container* cur = container_list;
-
-    while(cur!=NULL){
-
-        printk("C%llu:",cur->container_id);
-
-        struct thread_node* cur_thread = cur->thread_head;
-        mutex_lock(container->local_lock);
-        while(cur_thread!=NULL){
-            printk("\tT%d",cur_thread ->pid);
-            cur_thread = cur_thread ->next;
-        }
-        printk("\n");
-        mutex_unlock(container->local_lock);
-        cur = cur->next;
-    }
-    mutex_unlock(lock);
-}
 
 int enqueue(struct container* container, struct thread_node* thread_item){
     int ret = -1;
@@ -114,7 +92,7 @@ struct thread_node* dequeue(struct container* container){
         return NULL;
     }
     to_return = container ->thread_head;
-    container ->thread_head = container ->thread_head-> next;
+    container ->thread_head = to_return -> next;
     if(container ->thread_head == NULL){
         container ->thread_tail = NULL;
     }
@@ -122,38 +100,41 @@ struct thread_node* dequeue(struct container* container){
     return to_return;
 }
 
+
+
 // Lookup container by id
 struct container* lookup_container(__u64 cid){
     // take a lock on the global container list
     struct container* cur;
     struct container* return_container = NULL;
     printk("Looking up container;before lock %d", current->pid);
+    mutex_lock(lock);
     printk("Look up container acquired lock %d", current->pid);
     cur = container_list;
     printk("Container ID : %llu",cid);
     while (cur != NULL){
-        mutex_lock(lock);
         if(cur == NULL){
-            mutex_unlock(lock);
+           //mutex_unlock(lock);
             break;
         }
         if(cur -> container_id == cid){
             printk("Container ID : %llu",cur ->container_id);
             printk("Found container, unlocked %d", current->pid);
             return_container =  cur;
-            mutex_unlock(lock);
+            //mutex_unlock(lock);
             break;
         }else{
             cur = cur -> next;
         }
-        mutex_unlock(lock);
     }
-    mutex_unlock(lock);
     if(return_container==NULL){
         printk("Lookup complete, didnt unlock/find container! %d", current->pid);
     }
+    mutex_unlock(lock);
+    printk("Lookup container, released lock %d", current->pid);
     return return_container;
 }
+
 // Thread Linked Lists
 int add_thread(struct container* container){
     int pos;
@@ -163,18 +144,52 @@ int add_thread(struct container* container){
     current_thread_node->thread_id = current->pid;
     current_thread_node->context = current;
     //take a lock using the containers local mutex
+    printk("Adding thread. Before lock %d", current->pid);
+
+    // Adding thread to tail
     mutex_lock(container->local_lock);
+            printk("Adding thread. Acquired lock %d", current->pid);
             pos = enqueue(container,current_thread_node);
+            if(pos==1){
+                // This means it is Enqueued at tail and is not the head - Make it sleep
+                set_current_state(TASK_INTERRUPTIBLE);
+                printk("This thread %d is being been put to sleep",current->pid);
+            }
     mutex_unlock(container->local_lock);
-    if(pos == 0){
-        //added to head
-        set_current_state(TASK_RUNNING);
-    }else if(pos == 1){
-        //added to tail, so sleep
-        set_current_state(TASK_INTERRUPTIBLE);
-    }
+
+    // Adding thread to head (scrap)
+    // mutex_lock(container->local_lock);
+    //         printk("Adding thread. Acquired lock %d", current->pid);
+    //         // pos = enqueue(container,current_thread_node);
+    //         // Set head state to task interupptible
+    //         if(container->thread_head != NULL){
+    //             // container->thread_head->context->task_state_change = _THIS_IP_; 
+    //             container->thread_head->context->state = TASK_INTERRUPTIBLE;
+    //             printk("This thread %d is being been put to sleep",container->thread_head->thread_id);
+
+
+    //             current_thread_node->next = container->thread_head;
+    //         }else{
+             
+    //             container->thread_tail = current_thread_node;
+    //         }
+    //             container->thread_head = current_thread_node;
+    //         // Add current thread to head
+        
+    // mutex_unlock(container->local_lock);
+
+
+    printk("Added thread. Released lock %d", current->pid);
+    // if(pos == 0){
+    //     //added to head
+    //     set_current_state(TASK_RUNNING);
+    // }else if(pos == 1){
+    //     //added to tail, so sleep
+    //     set_current_state(TASK_INTERRUPTIBLE);
+    // }
     //printk("Added thread to the container %d", container->thread_tail->thread_id);
-    printk("Added thread to the container ");
+    // printk("Added thread to the container ");
+    // printk("Thread put to sleep");
     schedule();
     return 0;
 }
@@ -183,6 +198,8 @@ int add_thread(struct container* container){
 // Container Linked Lists
 int add_container(struct container* lookup_cont, __u64 cid){
     
+    
+
     if(lookup_cont!= NULL){
         //container exists; add threads    
         add_thread(lookup_cont);    
@@ -200,15 +217,14 @@ int add_container(struct container* lookup_cont, __u64 cid){
         //lock the global container list before adding
 
         mutex_lock(lock);
+                printk("Adding container; acquired lock %d", current->pid);
                 if(container_list!=NULL){
                     container_list->prev = new_container;
                 }
                 new_container->next = container_list;
                 container_list = new_container;
         mutex_unlock(lock);
-        printk("Adding container; acquired lock %d", current->pid);
-
-        printk("Adding a fresh container %d", current->pid);
+        printk("Adding a fresh container, released lock %d", current->pid);
         add_thread(new_container);
         printk("Added container, unlocked %d", current->pid);
      }     
@@ -216,7 +232,9 @@ int add_container(struct container* lookup_cont, __u64 cid){
 }
 
 void delete_container(struct container* container){
+    printk("Delete container, before lock %d", current->pid);
     mutex_lock(lock);
+    printk("Delete container, acquired lock %d", current->pid);
     if(container!=NULL){
         printk("Try to delete container %llu by %d",container->container_id, current->pid);
         if(container -> next !=NULL){
@@ -228,22 +246,31 @@ void delete_container(struct container* container){
         }else{
             container_list = container->next;
         }
+        // printk("Thread Head ID: %d", container_list->thread_head->thread_id);
         printk("Freed container %llu by %d",container->container_id, current->pid);
-
-        //mutex_destroy(container->local_lock);
-        //kfree(container->local_lock);
-        //container->next = NULL;
-        //container-> prev = NULL;
-        //kfree(container);
-        //container=NULL;
+        // printk("Try to delete container %llu by %d",container->container_id, current->pid);
+        // if(container->prev != NULL){
+        //     container->prev->next = container->next;
+        //     container->next->prev = container->prev;
+        // }else{
+        //     container_list = container->next;
+        // }
+        // mutex_destroy(container->local_lock);
+        // kfree(container->local_lock);
+        // container->next = NULL;
+        // container-> prev = NULL;
+        // kfree(container);
+        // container=NULL;
         // if(container_list == NULL){
         //     printk("No more containers!");
         // }else{
         //     printk("Thread Head ID: %d", container_list->thread_head->thread_id);
         // }
         // printk("Freed container %llu by %d",container->container_id, current->pid);
+        // printk("Freed container");
     }
     mutex_unlock(lock);
+    printk("Delete container, released lock %d", current->pid);
    
 }
 
@@ -256,9 +283,11 @@ void delete_container(struct container* container){
 
 int delete_thread(struct container* container){
     struct thread_node* to_delete;
-    struct thread_node* new_head;
+    // struct thread_node* new_head;
     int ret_code = 1;
+    printk("Delete thread, before lock %d", current->pid);
     mutex_lock(container->local_lock);
+    printk("Delete thread, acquired lock %d", current->pid);
     if(container !=NULL){
                 to_delete = dequeue(container);
                 if(to_delete!=NULL){
@@ -266,13 +295,15 @@ int delete_thread(struct container* container){
                     kfree(to_delete);
                     to_delete=NULL;
                     //get the next thread to schedule, if it exists
-                    new_head = dequeue(container);
-                    if(new_head == NULL){
+                    // new_head = dequeue(container);
+
+                    if(container->thread_head == NULL){
                         delete_container(container);
                         //no more threads in this container, delete it
                     }else{
-                        wake_up_process(new_head->context);
+                        wake_up_process(container->thread_head->context);
                     }
+                
                 }else{
                     ret_code = -1;
                     //somehow the current thread wasn't the head of the queue
@@ -282,6 +313,7 @@ int delete_thread(struct container* container){
         //somehow the container was null;
     }
     mutex_unlock(container->local_lock);
+    printk("Delete thread, released lock %d", current->pid);
     return ret_code;
 }
 
@@ -304,12 +336,12 @@ int processor_container_delete(struct processor_container_cmd __user *user_cmd)
         delete_thread(cont);
     }
 
-    mutex_lock(lock);
-        if(container_list==NULL){
-            mutex_destroy(lock);
-            kfree(lock);
-        }
-    mutex_unlock(lock);
+    // mutex_lock(lock);
+    //     if(container_list==NULL){
+    //         mutex_destroy(lock);
+    //         kfree(lock);
+    //     }
+    // mutex_unlock(lock);
     return 0;
 }
 
@@ -353,10 +385,12 @@ struct container* find_container_by_thread(pid_t pid){
     struct container* cur = container_list;
     struct container* ret = NULL;
 
+    printk("Find container, before lock %d", current->pid);
+    mutex_lock(lock);
+    printk("Find container, acquired lock %d", current->pid);
     while(cur!=NULL){
-        mutex_lock(lock);
         if(cur == NULL){
-            mutex_unlock(lock);
+            //mutex_unlock(lock);
             break;
         }
         // take a local lock to prevent
@@ -364,16 +398,17 @@ struct container* find_container_by_thread(pid_t pid){
 
         if(cur->thread_head != NULL && cur->thread_head->thread_id == pid){
             ret = cur;
-            //mutex_unlock(cur-> local_lock);
-            mutex_unlock(lock);
+            // mutex_unlock(cur-> local_lock);
+            // mutex_unlock(lock);
             break;
         }else{
             cur = cur -> next;
         }
-        //mutex_unlock(cur-> local_lock);
+        // mutex_unlock(cur-> local_lock);
 
-        mutex_unlock(lock);
     }
+    mutex_unlock(lock);
+    printk("Find container, released lock %d", current->pid);
     return ret;
 }
 
@@ -385,18 +420,19 @@ struct container* find_container_by_thread(pid_t pid){
  */
 int processor_container_switch(struct processor_container_cmd __user *user_cmd)
 {
-    current_container_state();
     struct container* context_switch_container;
     struct thread_node* top;
     int woken_up;
     printk("Context switching for thread %d",current->pid);
     // Find container having current thread
-    mutex_lock(lock);
+    
     context_switch_container = find_container_by_thread(current->pid);
-    mutex_unlock(lock);
+    
     // Suspend current thread and Move thread to the back of the queue and change thread head
     if(context_switch_container != NULL){
+        printk("Switch container, before lock %d", current->pid);
         mutex_lock(context_switch_container->local_lock);
+        printk("Switch container, acquired lock %d", current->pid);
         printk("This thread %d belongs to container %llu",current->pid, context_switch_container->container_id);
 
         if(context_switch_container->thread_head != context_switch_container->thread_tail){
@@ -406,7 +442,7 @@ int processor_container_switch(struct processor_container_cmd __user *user_cmd)
             set_current_state(TASK_INTERRUPTIBLE);
             woken_up = wake_up_process(context_switch_container->thread_head->context);
             if(woken_up == 1){
-                printk("This thread %d has been woken up",current->pid);
+                printk("This thread %d has been woken up",context_switch_container->thread_head->context->pid);
             }else{
                 printk("This thread %d was already running",current->pid);
             }
@@ -414,8 +450,13 @@ int processor_container_switch(struct processor_container_cmd __user *user_cmd)
             set_current_state(TASK_RUNNING);
         }
         mutex_unlock(context_switch_container->local_lock);
-        schedule();
+        printk("Switch container, released lock %d", current->pid);
         printk("This thread %d has been put to sleep",current->pid);
+        printk("Head: %d",context_switch_container->thread_head->thread_id);
+        if(context_switch_container->thread_head->next!=NULL){
+            printk("Tail: %d",context_switch_container->thread_tail->thread_id);
+        }
+        schedule();
     }
     else{
         printk("Could not find container for context switching for thread %d",current->pid);

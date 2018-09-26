@@ -40,7 +40,7 @@ void *thread_body(void *x)
         }
         // update the total counter.
         pthread_mutex_lock(&mutex);
-        total += 10000;
+        total += 100;
         pthread_mutex_unlock(&mutex);
     }
     // The sum of each container should be close.
@@ -128,7 +128,6 @@ int main(int argc, char *argv[])
     for (i = 0; i < total_tasks; i++)
     {
         pthread_join(threads[i], NULL);
-        fprintf(stderr, "The finished %d \n",i);
     }
 
     // cleanup
