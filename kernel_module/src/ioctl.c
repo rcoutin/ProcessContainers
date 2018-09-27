@@ -257,10 +257,10 @@ void delete_container(struct container* container){
         // }
         // mutex_destroy(container->local_lock);
         // kfree(container->local_lock);
-        // container->next = NULL;
-        // container-> prev = NULL;
-        // kfree(container);
-        // container=NULL;
+        container->next = NULL;
+        container-> prev = NULL;
+        kfree(container);
+        container=NULL;
         // if(container_list == NULL){
         //     printk("No more containers!");
         // }else{
