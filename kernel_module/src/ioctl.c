@@ -164,8 +164,6 @@ int add_thread(struct container* container){
 
 // Container Linked Lists
 int add_container(struct container* lookup_cont, __u64 cid){
-    
-    
 
     if(lookup_cont!= NULL){
         //container exists; add threads    
@@ -214,12 +212,13 @@ void delete_container(struct container* container){
             container_list = container->next;
         }
         printk("Freed container %llu by %d",container->container_id, current->pid);
-        // mutex_destroy(container->local_lock);
-        // kfree(container->local_lock);
+
+        mutex_unlock(container->local_lock);
+        mutex_destroy(container->local_lock);
+        kfree(container->local_lock);
+        container-> local_lock = NULL;
         container->next = NULL;
         container-> prev = NULL;
-        kfree(container);
-        container=NULL;
     }
     mutex_unlock(lock);
     printk("Delete container, released lock %d", current->pid);
@@ -251,7 +250,9 @@ int delete_thread(struct container* container){
 
                     if(container->thread_head == NULL){
                         delete_container(container);
-                        //no more threads in this container, delete it
+                        kfree(container);
+                        container=NULL;
+                        //no more threads in this container, delete it and !!!UNLOCK THE ABOVE LOCAL LOCK!!!
                     }else{
                         wake_up_process(container->thread_head->context);
                     }
@@ -264,7 +265,9 @@ int delete_thread(struct container* container){
         ret_code = -1;
         //somehow the container was null;
     }
-    mutex_unlock(container->local_lock);
+    if(container!=NULL){ // CAN BE NULL IF CONTAINER IS DELETED
+        mutex_unlock(container->local_lock);
+    }
     printk("Delete thread, released lock %d", current->pid);
     return ret_code;
 }
@@ -286,6 +289,7 @@ int processor_container_delete(struct processor_container_cmd __user *user_cmd)
     cont = lookup_container(kprocessor_container_cmd.cid);
     if(cont!=NULL){
         delete_thread(cont);
+        printk("Deleted thread");
     }
 
     // mutex_lock(lock);
