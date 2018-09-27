@@ -156,40 +156,7 @@ int add_thread(struct container* container){
                 printk("This thread %d is being been put to sleep",current->pid);
             }
     mutex_unlock(container->local_lock);
-
-    // Adding thread to head (scrap)
-    // mutex_lock(container->local_lock);
-    //         printk("Adding thread. Acquired lock %d", current->pid);
-    //         // pos = enqueue(container,current_thread_node);
-    //         // Set head state to task interupptible
-    //         if(container->thread_head != NULL){
-    //             // container->thread_head->context->task_state_change = _THIS_IP_; 
-    //             container->thread_head->context->state = TASK_INTERRUPTIBLE;
-    //             printk("This thread %d is being been put to sleep",container->thread_head->thread_id);
-
-
-    //             current_thread_node->next = container->thread_head;
-    //         }else{
-             
-    //             container->thread_tail = current_thread_node;
-    //         }
-    //             container->thread_head = current_thread_node;
-    //         // Add current thread to head
-        
-    // mutex_unlock(container->local_lock);
-
-
     printk("Added thread. Released lock %d", current->pid);
-    // if(pos == 0){
-    //     //added to head
-    //     set_current_state(TASK_RUNNING);
-    // }else if(pos == 1){
-    //     //added to tail, so sleep
-    //     set_current_state(TASK_INTERRUPTIBLE);
-    // }
-    //printk("Added thread to the container %d", container->thread_tail->thread_id);
-    // printk("Added thread to the container ");
-    // printk("Thread put to sleep");
     schedule();
     return 0;
 }
@@ -246,28 +213,13 @@ void delete_container(struct container* container){
         }else{
             container_list = container->next;
         }
-        // printk("Thread Head ID: %d", container_list->thread_head->thread_id);
         printk("Freed container %llu by %d",container->container_id, current->pid);
-        // printk("Try to delete container %llu by %d",container->container_id, current->pid);
-        // if(container->prev != NULL){
-        //     container->prev->next = container->next;
-        //     container->next->prev = container->prev;
-        // }else{
-        //     container_list = container->next;
-        // }
         // mutex_destroy(container->local_lock);
         // kfree(container->local_lock);
         container->next = NULL;
         container-> prev = NULL;
         kfree(container);
         container=NULL;
-        // if(container_list == NULL){
-        //     printk("No more containers!");
-        // }else{
-        //     printk("Thread Head ID: %d", container_list->thread_head->thread_id);
-        // }
-        // printk("Freed container %llu by %d",container->container_id, current->pid);
-        // printk("Freed container");
     }
     mutex_unlock(lock);
     printk("Delete container, released lock %d", current->pid);
