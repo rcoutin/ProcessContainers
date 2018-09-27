@@ -375,11 +375,10 @@ int processor_container_switch(struct processor_container_cmd __user *user_cmd)
     struct container* context_switch_container;
     struct thread_node* top;
     int woken_up;
-    printk("Context switching for thread %d",current->pid);
+    printk("Starting Context switching for thread %d",current->pid);
     // Find container having current thread
     
     context_switch_container = find_container_by_thread(current->pid);
-    
     // Suspend current thread and Move thread to the back of the queue and change thread head
     if(context_switch_container != NULL){
         printk("Switch container, before lock %d", current->pid);
@@ -393,27 +392,32 @@ int processor_container_switch(struct processor_container_cmd __user *user_cmd)
             enqueue(context_switch_container,top);
             set_current_state(TASK_INTERRUPTIBLE);
             woken_up = wake_up_process(context_switch_container->thread_head->context);
-            if(woken_up == 1){
-                printk("This thread %d has been woken up",context_switch_container->thread_head->context->pid);
-            }else{
-                printk("This thread %d was already running",current->pid);
-            }
+            mutex_unlock(context_switch_container->local_lock);
+            printk("Switch container, released lock %d", current->pid);
+            printk("This thread %d has been put to sleep",current->pid);
+            printk("Head: %d",context_switch_container->thread_head->thread_id);
+            schedule();
+            // if(woken_up == 1){
+            //     printk("This thread %d has been woken up",context_switch_container->thread_head->context->pid);
+            // }else{
+            //     printk("This thread %d was already running",current->pid);
+            // }
         }else{
-            set_current_state(TASK_RUNNING);
+            // set_current_state(TASK_RUNNING);
+            mutex_unlock(context_switch_container->local_lock);
         }
-        mutex_unlock(context_switch_container->local_lock);
-        printk("Switch container, released lock %d", current->pid);
-        printk("This thread %d has been put to sleep",current->pid);
-        printk("Head: %d",context_switch_container->thread_head->thread_id);
-        if(context_switch_container->thread_head->next!=NULL){
-            printk("Tail: %d",context_switch_container->thread_tail->thread_id);
-        }
-        schedule();
+        // printk("Switch container, released lock %d", current->pid);
+        // printk("This thread %d has been put to sleep",current->pid);
+        // printk("Head: %d",context_switch_container->thread_head->thread_id);
+        // if(context_switch_container->thread_head->next!=NULL){
+        //     printk("Tail: %d",context_switch_container->thread_tail->thread_id);
+        // }
+        // schedule();
     }
     else{
         printk("Could not find container for context switching for thread %d",current->pid);
     }
-
+    printk("Exiting Context switching for thread %d",current->pid);
     return 0;
 }
 

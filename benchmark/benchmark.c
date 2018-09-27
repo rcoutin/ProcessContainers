@@ -26,21 +26,22 @@ void *thread_body(void *x)
     int i;
     double sum;
     int cid = *((int *)x);
-    
+
     // allocate/associate a container for the thread.
     pcontainer_create(devfd, cid);
-    
+
     while (total < 50000000)
     {
         // calculate some dumb numbers here.
-        for (i = 0; i < 10000; i++)
+        for (i = 0; i < 1000000; i++)
         {
             sum += 1.0 / (1.2 + i);
             processed++;
         }
+
         // update the total counter.
         pthread_mutex_lock(&mutex);
-        total += 10000;
+        total += 1000000;
         pthread_mutex_unlock(&mutex);
     }
     // The sum of each container should be close.
