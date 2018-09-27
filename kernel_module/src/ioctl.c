@@ -108,22 +108,23 @@ struct container* lookup_container(__u64 cid){
     struct container* cur;
     struct container* return_container = NULL;
     printk("Looking up container;before lock %d", current->pid);
-    mutex_lock(lock);
     printk("Look up container acquired lock %d", current->pid);
     cur = container_list;
     printk("Container ID : %llu",cid);
     while (cur != NULL){
+        mutex_lock(lock);
         if(cur == NULL){
-           //mutex_unlock(lock);
+           mutex_unlock(lock);
             break;
         }
         if(cur -> container_id == cid){
             printk("Container ID : %llu",cur ->container_id);
             printk("Found container, unlocked %d", current->pid);
             return_container =  cur;
-            //mutex_unlock(lock);
+            mutex_unlock(lock);
             break;
         }else{
+            mutex_unlock(lock);
             cur = cur -> next;
         }
     }
