@@ -22,9 +22,10 @@
 //
 ////////////////////////////////////////////////////////////////////////
 //
-//   Author:  Hung-Wei Tseng, Yu-Chia Liu
+//   Author:  Vijay Hebbar (vhhebbar), Rahul Coutinho (rcoutin)
 //
 //   Description:
+//     Project 1 submission
 //     Core of Kernel Module for Processor Container
 //
 ////////////////////////////////////////////////////////////////////////
@@ -47,9 +48,12 @@
 
 // Global container list
 struct container* container_list = NULL;
+
+// Global lock
 struct mutex* lock = NULL;
+
 // Structures for containers and threads
-//Threads
+// Threads
 struct thread_node {
     int thread_id;
     struct thread_node* next;
@@ -65,22 +69,24 @@ struct container{
     struct mutex * local_lock;
 };
 
+// Enqueue function that enqueues node to tail
 int enqueue(struct container* container, struct thread_node* thread_item){
     int ret = -1;
     if(container ->thread_tail !=NULL){
         container ->thread_tail -> next = thread_item;
-        //enqueued at tail
+        // Thread enqueued at tail - Sleep it
         ret = 1;
     }
     container ->thread_tail = thread_item;
     if(container ->thread_head == NULL){
         container ->thread_head = thread_item;
-         //enqueued at head
+        // Thread at head - Keep it running
         ret = 0;
     }
     return ret;
 }
 
+// Dequeue function dequeues head node from list
 struct thread_node* dequeue(struct container* container){
     struct thread_node* to_return;
 
@@ -92,11 +98,10 @@ struct thread_node* dequeue(struct container* container){
     if(container ->thread_head == NULL){
         container ->thread_tail = NULL;
     }
-    to_return -> next = NULL; // set the next pointer upon dequeue since we don't need it
+    // set the next pointer upon dequeue since we don't need it
+    to_return -> next = NULL; 
     return to_return;
 }
-
-
 
 // Lookup container by id
 struct container* lookup_container(__u64 cid){
@@ -159,7 +164,7 @@ int add_thread(struct container* container){
 }
 
 
-// Container Linked Lists
+// Adding container
 int add_container(struct container* lookup_cont, __u64 cid){
 
     if(lookup_cont!= NULL){
