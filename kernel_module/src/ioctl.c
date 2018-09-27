@@ -63,9 +63,6 @@ struct container{
     struct thread_node* thread_head;
     struct thread_node* thread_tail;
     struct mutex * local_lock;
-    // kthread_t * sched_thread;
-    // Function pointer - Assign it when you create container.
-    //void (*container_scheduler_ptr)(__u64);
 };
 
 int enqueue(struct container* container, struct thread_node* thread_item){
@@ -86,8 +83,7 @@ int enqueue(struct container* container, struct thread_node* thread_item){
 
 struct thread_node* dequeue(struct container* container){
     struct thread_node* to_return;
-    // struct thread_node* head = container ->thread_head;
-    // struct thread_node* tail = container ->thread_tail;
+
     if(container ->thread_head == NULL){
         return NULL;
     }
@@ -247,7 +243,6 @@ int delete_thread(struct container* container){
                     kfree(to_delete);
                     to_delete=NULL;
                     //get the next thread to schedule, if it exists
-                    // new_head = dequeue(container);
 
                     if(container->thread_head == NULL){
                         delete_container(container);
