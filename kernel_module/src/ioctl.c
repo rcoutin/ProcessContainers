@@ -124,8 +124,8 @@ struct container* lookup_container(__u64 cid){
             mutex_unlock(lock);
             break;
         }else{
-            mutex_unlock(lock);
             cur = cur -> next;
+            mutex_unlock(lock);
         }
     }
     if(return_container==NULL){
@@ -343,28 +343,28 @@ struct container* find_container_by_thread(pid_t pid){
     struct container* ret = NULL;
 
     printk("Find container, before lock %d", current->pid);
-    mutex_lock(lock);
     printk("Find container, acquired lock %d", current->pid);
     while(cur!=NULL){
+        mutex_lock(lock);
         if(cur == NULL){
-            //mutex_unlock(lock);
+            mutex_unlock(lock);
             break;
         }
         // take a local lock to prevent
         //mutex_lock(cur-> local_lock);
-
         if(cur->thread_head != NULL && cur->thread_head->thread_id == pid){
             ret = cur;
-            // mutex_unlock(cur-> local_lock);
-            // mutex_unlock(lock);
+           // mutex_unlock(cur-> local_lock);
+            mutex_unlock(lock);
             break;
         }else{
             cur = cur -> next;
+            //mutex_unlock(cur-> local_lock);
+            mutex_unlock(lock);
         }
-        // mutex_unlock(cur-> local_lock);
 
     }
-    mutex_unlock(lock);
+    //mutex_unlock(lock);
     printk("Find container, released lock %d", current->pid);
     return ret;
 }
