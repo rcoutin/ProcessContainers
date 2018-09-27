@@ -348,25 +348,25 @@ struct container* find_container_by_thread(pid_t pid){
         mutex_lock(lock);
         if(cur == NULL){
             mutex_unlock(lock);
-            break;
+            return NULL;
         }
         // take a local lock to prevent
-        //mutex_lock(cur-> local_lock);
+        mutex_lock(cur-> local_lock);
         if(cur->thread_head != NULL && cur->thread_head->thread_id == pid){
             ret = cur;
-           // mutex_unlock(cur-> local_lock);
+            mutex_unlock(cur-> local_lock);
             mutex_unlock(lock);
-            break;
+            return cur;
         }else{
             cur = cur -> next;
-            //mutex_unlock(cur-> local_lock);
+            mutex_unlock(cur-> local_lock);
             mutex_unlock(lock);
         }
 
     }
     //mutex_unlock(lock);
     printk("Find container, released lock %d", current->pid);
-    return ret;
+    return NULL;
 }
 
 /**
