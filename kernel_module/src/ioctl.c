@@ -67,7 +67,6 @@ struct container{
 
 int enqueue(struct container* container, struct thread_node* thread_item){
     int ret = -1;
-    mutex_lock(container->local_lock);
     if(container ->thread_tail !=NULL){
         container ->thread_tail -> next = thread_item;
         //enqueued at tail
@@ -79,8 +78,6 @@ int enqueue(struct container* container, struct thread_node* thread_item){
          //enqueued at head
         ret = 0;
     }
-    mutex_unlock(container->local_lock);
-
     return ret;
 }
 
@@ -147,7 +144,7 @@ int add_thread(struct container* container){
     printk("Adding thread. Before lock %d", current->pid);
 
     // Adding thread to tail
-   // mutex_lock(container->local_lock);
+    mutex_lock(container->local_lock);
             printk("Adding thread. Acquired lock %d", current->pid);
             pos = enqueue(container,current_thread_node);
             if(pos==1){
@@ -155,7 +152,7 @@ int add_thread(struct container* container){
                 set_current_state(TASK_INTERRUPTIBLE);
                 printk("This thread %d is being been put to sleep",current->pid);
             }
-    //mutex_unlock(container->local_lock);
+    mutex_unlock(container->local_lock);
     printk("Added thread. Released lock %d", current->pid);
     schedule();
     return 0;
@@ -386,7 +383,7 @@ int processor_container_switch(struct processor_container_cmd __user *user_cmd)
     // Suspend current thread and Move thread to the back of the queue and change thread head
     if(context_switch_container != NULL){
         printk("Switch container, before lock %d", current->pid);
-        //mutex_lock(context_switch_container->local_lock);
+        mutex_lock(context_switch_container->local_lock);
         printk("Switch container, acquired lock %d", current->pid);
         printk("This thread %d belongs to container %llu",current->pid, context_switch_container->container_id);
 
@@ -404,7 +401,7 @@ int processor_container_switch(struct processor_container_cmd __user *user_cmd)
         }else{
             set_current_state(TASK_RUNNING);
         }
-        //mutex_unlock(context_switch_container->local_lock);
+        mutex_unlock(context_switch_container->local_lock);
         printk("Switch container, released lock %d", current->pid);
         printk("This thread %d has been put to sleep",current->pid);
         printk("Head: %d",context_switch_container->thread_head->thread_id);
